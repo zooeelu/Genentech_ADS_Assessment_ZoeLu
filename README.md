@@ -1,6 +1,5 @@
 
 # Genentech ADS Programming Assessment
----
 
 
 This repository contains my solution to the **Genentech ADS Programming
