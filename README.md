@@ -9,11 +9,11 @@ Assessment**.  q1 done for now update later !
 
 ## Repository Structure
 
-### `Question1/` Folder
+### `Question1` Folder
 
 Contains all files related to **Question 1: SDTM DS domain creation**.
 
-- **`question_1_sdtm:01_create_ds_domain.R`**  
+- **`question_1_sdtm_01_create_ds_domain.R`**  
   Main R script used to generate the SDTM DS domain.
 
 - **`sdtm_ct.csv`**  
