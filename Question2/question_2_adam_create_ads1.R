@@ -1,0 +1,1 @@
+# set up q2 script
