@@ -12,7 +12,6 @@
 library(tidyverse)
 library(pharmaversesdtm)
 library(admiral)
-library(lubridate)
 library(stringr)
 
 # ------------Reading in the data ---------------------------------------
@@ -35,7 +34,8 @@ adsl <- dm %>%
   select(-DOMAIN)
 
 # ------------Derive AGEGR9 / AGEGR9N ---------------------------------------
-# Age grouping cateogries: <18, 18-50, >50
+# AGEGR9: Categorical age group from DM.AGE: "<18", "18 - 50", ">50"
+# AGEGR9N: Numeric version of AGEGR9 with categories coded as 1, 2, 3
 adsl <- adsl %>% 
   mutate(
     # Text version of Age groups
@@ -55,14 +55,20 @@ adsl <- adsl %>%
   )
 
 # ------------Derive TRTSDTM / TRTSTMF ---------------------------------------
-# - Use first exposure record per subject (ex file)
-# - Only include "valid dose" records:
-#     EXDOSE > 0 OR (EXDOSE == 0 AND EXTRT contains 'PLACEBO')
-# - Only include records where datepart of EXSTDTC is complete (YYYY-MM-DD)
-# - Impute time:
-#     * If time missing entirely -> 00:00:00 and TRTSTMF = "Y" (flag)
-#     * If partial time missing -> impute missing HH/MM/SS with "00" seconds and TRTSTMF = "Y" (flag)
-#     * If ONLY seconds missing -> impute seconds to "00" BUT TRTSTMF = NA (do not flag)
+# TRTSDTM: Datetime of subject's FIRST valid exposure start (from EX.EXSTDTC),
+#          sorted by EXSTDTM and EXSEQ.
+#          Include only EX records with:
+#            - valid dose: EXDOSE > 0 OR (EXDOSE == 0 AND EXTRT contains "PLACEBO")
+#            - complete date part of EXSTDTC (i.e., EXSTDTM is not missing)
+#
+# Time imputation rules (applied in derive_vars_dtm):
+#   - If time is completely missing -> impute 00:00:00
+#   - If time is partially missing  -> impute missing HH/MM/SS components with "00"
+#   - If ONLY seconds are missing   -> impute seconds to "00" BUT DO NOT set TRTSTMF
+#
+# TRTSTMF: Imputation flag for TRTSDTM
+#   - "Y" if hours or minutes were imputed
+#   - NA otherwise (including "seconds-only" imputation; ignore_seconds_flag = TRUE)
 
 # Derive date time object for treatment start date
 ex_ext <-  ex %>% 
@@ -110,11 +116,18 @@ adsl <- adsl %>%
   )
 
 # ------------Derive ITTFL ---------------------------------------------------
+# ITTFL: Intent-to-treat flag (randomized population)
+# Set to "Y" if ARM is populated (not missing), else "N"
+
 adsl <- adsl %>% 
   mutate(ITTFL = ifelse(!is.na(ARM), "Y", "N"))
 
-# ------------Derive LSTAVLDT ---------------------------------------------------
-# Derive last exposure datetime (TRTEDTM) from EXSTDTC (valid dose only)
+# ------------Derive TRTEDTM (supporting variable for LSTAVLDT) --------------
+# TRTEDTM: Datetime of subject's LAST valid exposure record (based on EX.EXSTDTC),
+#          using the same valid dose definition as TRTSDTM.
+#          Time is imputed to end-of-day ("last") when missing.
+# Note: LSTAVLDT uses the DATEPART of TRTEDTM as one source of "last known alive" evidence.
+
 ex_end <- ex %>%
   derive_vars_dtm(
     dtc = EXSTDTC,
@@ -135,6 +148,15 @@ adsl <- adsl %>%
     new_vars = exprs(TRTEDTM = EXENDTM)
   )
 
+# ------------Derive LSTAVLDT ------------------------------------------------
+# LSTAVLDT: Last known alive date = maximum of the following dates (per subject):
+#   VS: last complete vital signs date (VS.VSDTC) where a result exists
+#       (VS.VSSTRESN and VS.VSSTRESC not both missing)
+#   AE: last complete adverse event onset date (AE.AESTDTC)
+#   DS: last complete disposition date (DS.DSSTDTC)
+#   Treatment: datepart of TRTEDTM (last valid exposure datetime)
+
+
 # Define helper for complete datepart meaning the string starts with YYYY-MM-DD
 is_complete_datepart <- function(x) {
   !is.na(x) & str_detect(x, "^\\d{4}-\\d{2}-\\d{2}")
@@ -154,8 +176,8 @@ adsl <- adsl %>%
         order = exprs(VSDTC),
         
         # only VS rows with a real assessment and complete date count as being alive
-        condition = is_complete_datepart(VSDTC) & # vital signs must have a result
-          !(is.na(VSSTRESN) & is.na(VSSTRESC)),   # datepart msut be compelted
+        condition = is_complete_datepart(VSDTC) &  # datepart msut be compelted 
+          !(is.na(VSSTRESN) & is.na(VSSTRESC)),   # vital signs must have a result
         
         # defines what value this event contributes
         set_values_to = exprs(
@@ -211,7 +233,8 @@ adsl <- adsl %>%
     new_vars = exprs(LSTAVLDT)
   )
 
-
+# ------------Saving ADAM ADSL dataset ------------------------------------------------
+write.csv(adsl, "Question2/adam_adsl.csv", row.names = FALSE) 
 
 
 
