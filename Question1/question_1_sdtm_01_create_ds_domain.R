@@ -1,4 +1,4 @@
-# ------------------------------------------------------------------------------------------------
+###############################################################################
 # Program: question_1_sdtm:01_create_ds_domain.R
 # Purpose: Create SDTM DS (Disposition) domain using {sdtm.oak}
 # Input: pharmaverseraw::ds_raw
@@ -6,15 +6,19 @@
 # Notes: The assessment inputs did not include the DM domain or a subject-level
 #        reference start date. However, the expected SDTM output for
 #        Question 1 requires derivation of DSSTDY.
-#        So, a "sponsor-defined reference" (me, for the sake of this assessment) start date was derived from the
+#        So, a "sponsor-defined reference" (me, for the sake of this assessment) start 
+#        date was derived from the
+#
 #        Disposition domain as follows:
 #             -RFSTDTC was defined as the start date (DSSTDTC) of the "Randomized"
 #              disposition record (DSDECOD = "RANDOMIZED") for each subject.
+#
 #        For subjects without a Randomized record, RFSTDTC is missing and DSSTDY
 #        is left as NA.
 #        DSSTDY was then calculated relative to RFSTDTC using the standard SDTM
 #        study day algorithm outlined in the SDTM guide on CDISC website
-# ------------------------------------------------------------------------------------------------
+###############################################################################
+
 
 # Loading in required libraries
 library(tidyverse)
