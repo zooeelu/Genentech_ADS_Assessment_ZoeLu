@@ -70,7 +70,8 @@ ex_ext <-  ex %>%
     dtc = EXSTDTC, # input
     new_vars_prefix = "EXST", # output
     time_imputation = "first", # impute missing time to 00:00:00 (first time of day), 
-    flag_imputation = "time"
+    flag_imputation = "time", # flag if time is imputed
+    ignore_seconds_flag = TRUE # if only seconds msising do not flag
     ) 
 
 # Create a "valid dose" subset of EX:
@@ -109,9 +110,106 @@ adsl <- adsl %>%
   )
 
 # ------------Derive ITTFL ---------------------------------------------------
+adsl <- adsl %>% 
+  mutate(ITTFL = ifelse(!is.na(ARM), "Y", "N"))
 
+# ------------Derive LSTAVLDT ---------------------------------------------------
+# Derive last exposure datetime (TRTEDTM) from EXSTDTC (valid dose only)
+ex_end <- ex %>%
+  derive_vars_dtm(
+    dtc = EXSTDTC,
+    new_vars_prefix = "EXEN",
+    time_imputation = "last",
+    flag_imputation = "time"
+  )
 
+adsl <- adsl %>%
+  derive_vars_merged(
+    dataset_add = ex_end,
+    by_vars = exprs(STUDYID, USUBJID),
+    filter_add =
+      (EXDOSE > 0 | (EXDOSE == 0 & str_detect(toupper(EXTRT), "PLACEBO"))) &
+      !is.na(EXENDTM),
+    order = exprs(EXENDTM, EXSEQ),
+    mode = "last",
+    new_vars = exprs(TRTEDTM = EXENDTM)
+  )
 
+# Define helper for complete datepart meaning the string starts with YYYY-MM-DD
+is_complete_datepart <- function(x) {
+  !is.na(x) & str_detect(x, "^\\d{4}-\\d{2}-\\d{2}")
+}
+
+# Take the last date accross multiple datasets:
+# Defines a list of events; each even provides a possible date, then take the last one per subject
+adsl <- adsl %>%
+  # stacks events from multiple places then selects last event per subject
+  derive_vars_extreme_event(
+    by_vars = exprs(STUDYID, USUBJID),
+    
+    events = list(
+      # VS last complete date with valid result
+      event(
+        dataset_name = "vs",
+        order = exprs(VSDTC),
+        
+        # only VS rows with a real assessment and complete date count as being alive
+        condition = is_complete_datepart(VSDTC) & # vital signs must have a result
+          !(is.na(VSSTRESN) & is.na(VSSTRESC)),   # datepart msut be compelted
+        
+        # defines what value this event contributes
+        set_values_to = exprs(
+          LSTAVLDT = convert_dtc_to_dt(VSDTC),  # converts character date to real date
+          seq = coalesce(VSSEQ, 0L) # if 2 vs records share same date --> use VSSEQ otherwise if missing --> 0
+        )
+      ),
+      
+      # AE last complete onset date
+      event(
+        dataset_name = "ae",
+        order = exprs(AESTDTC, AESEQ),
+        condition = is_complete_datepart(AESTDTC), # only use complete datepart
+        set_values_to = exprs(
+          LSTAVLDT = convert_dtc_to_dt(AESTDTC),
+          seq = AESEQ
+        )
+      ),
+      
+      # DS last complete disposition date
+      event(
+        dataset_name = "ds",
+        order = exprs(DSSTDTC, DSSEQ),
+        condition = is_complete_datepart(DSSTDTC),
+        set_values_to = exprs(
+          LSTAVLDT = convert_dtc_to_dt(DSSTDTC),
+          seq = DSSEQ
+        )
+      ),
+      
+      # Treatment last administration date from ADSL.TRTEDTM (datepart)
+      # treatment date already in adsl --> no order needed
+      event(
+        dataset_name = "adsl", 
+        condition = !is.na(TRTEDTM),
+        set_values_to = exprs(
+          LSTAVLDT = as.Date(TRTEDTM),
+          seq = 0L
+        )
+      )
+    ),
+    # tells package which dataset to use 
+    source_datasets = list(vs = vs, ae = ae, ds = ds, adsl = adsl),
+    
+    # temporary event number variable
+    tmp_event_nr_var = event_nr,
+    
+    # choose the latest across all candidate LSTAVLDT values
+    order = exprs(LSTAVLDT, seq, event_nr),
+    mode = "last",
+    
+    # add LSTAVLDT to adsl dataset
+    new_vars = exprs(LSTAVLDT)
+  )
 
 
 
