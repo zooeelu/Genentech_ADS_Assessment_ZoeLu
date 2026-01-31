@@ -3,7 +3,7 @@
 
 
 This repository contains my solution to the **Genentech ADS Programming
-Assessment**.  q1 done for now update later !
+Assessment**. 
 
 
 ## Repository Structure
@@ -38,4 +38,38 @@ Contains all files related to **Question 2: ADaM ADSL dataset creation using the
 - **`q2_run_log.txt`**  
   Execution log provided as evidence that the Question 2 code runs successfully without errors.
 
+### `Question3` Folder
+
+Contains all files related to **Question 3: TLG – Adverse Events Reporting (Tables and Visualizations)**.
+
+#### `question3_01_sumtable` Subfolder
+
+Contains files related to the creation of the AE summary table.
+
+- **`question_3_tlg_01_create_ae_summary_table.R`**  
+  Main R script used to generate the FDA-style summary table of treatment-emergent adverse events (TEAEs).
+
+- **`AE_summary_table.html`**  
+  HTML output of the AE summary table.
+
+- **`q3_01_table_run_log.txt`**  
+  Execution log included as evidence that the table-generation code runs successfully without errors.
+
+#### `question3_02_visuals` Subfolder
+
+Contains files related to the creation of AE visualizations using `{ggplot2}`.
+
+- **`question_3_tlg_02_create_visualizations.R`**  
+  Main R script used to generate AE visualizations, including:
+  - AE severity distribution by treatment (stacked bar chart)
+  - Top 10 most frequent AEs with 95% Clopper-Pearson confidence intervals (forest plot)
+
+- **`ae_severity_by_treatment_barchart.png`**  
+  Stacked bar chart showing AE severity distribution by treatment group.
+
+- **`top_ten_ae_forest_plot.png`**  
+  Forest plot showing the Top 10 most frequent adverse events with 95% confidence intervals.
+
+- **`q3_02_visuals_run_log.txt`**  
+  Execution log included as evidence that the visualization code runs successfully without errors.
 
