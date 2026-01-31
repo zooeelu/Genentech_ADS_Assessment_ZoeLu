@@ -1,5 +1,5 @@
 ###############################################################################
-# Question 3: TLG – Adverse Events Reporting
+# Question 3: TLG – Adverse Events Reporting - Summary Table
 # Program: question_3_tlg/01_create_ae_summary_table.R
 # Purpose: Create an FDA-style Table 10 summary of Treatment-Emergent
 #          Adverse Events (TEAEs) using the pharmaverseadam ADAE and ADSL datasets.
