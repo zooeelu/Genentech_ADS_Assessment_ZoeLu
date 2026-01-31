@@ -20,7 +20,7 @@
 ###############################################################################
 
 
-# Loading in required libraries
+# -----------------------Loading in required libraries -----------------------------------------------
 library(tidyverse)
 library(sdtm.oak)
 library(pharmaverseraw)
@@ -34,16 +34,14 @@ str(ds_raw)
 study_sct <- read_csv("Question1/sdtm_ct.csv")
 str(study_sct)
 
-# -------------------------------------------------------------------------
-# Adding Oak ID vars into dataset
+# ---------------------Adding Oak ID vars into dataset-------------------------------------------------
 ds_raw <- generate_oak_id_vars(
   raw_dat = ds_raw,
   pat_var = "PATNUM",
   raw_src = "DS"
 )
 
-# -------------------------------------------------------------------------
-# Create eCRF-driven collected values
+# -------------------------Create eCRF-driven collected values----------------------------------------
 # Logic : If OTHERSP is NOT NULL, it drives DSTERM and DSDECOD, and sets DSCAT.
 #         Otherwise use the standard collected fields IT.DSTERM / IT.DSDECOD.
 #         For DSCAT: If IT.DSDECOD = "Randomized" --> Protocol Milestone, otherwise Disposition Event
@@ -56,8 +54,7 @@ ds_raw <- ds_raw %>%
                                ifelse(`IT.DSDECOD` == "Randomized", "PROTOCOL MILESTONE", "DISPOSITION EVENT"))
   )
 
-# -------------------------------------------------------------------------
-# Map DSTERM (Topic variable)
+# ------------------- Map DSTERM (Topic variable)---------------------------------------------
 # Logic : DSTERM = DSTERM_COLLECTED (OTHERSP overrides IT.DSTERM when NOT NULL)
 ds <- assign_no_ct(
   tgt_var = "DSTERM",
@@ -66,8 +63,7 @@ ds <- assign_no_ct(
   id_vars = oak_id_vars()
 )
 
-# -------------------------------------------------------------------------
-# Identify codelist for DSDECOD, then map using CT
+# ------------------ Identify codelist for DSDECOD, then map using CT -------------------------
 # Logic : DSDECOD = CT decode of DSDECOD_COLLECTED using study_sct
 cand_codelist_code <- study_sct %>%
   filter(collected_value %in% unique(ds_raw$DSDECOD_COLLECTED)) %>%
@@ -85,8 +81,7 @@ ds <- ds %>%
     ct_clst = cand_codelist_code
   )
 
-# -------------------------------------------------------------------------
-# Map DSCAT
+# ------------------------ Map DSCAT------------------------------------------------------------
 # Logic : If OTHERSP is populated then DSCAT = "OTHER EVENT", else "DISPOSITION EVENT" 
 #         DSCAT_COLLECTED derived earlier
 
@@ -98,8 +93,7 @@ ds <- ds %>%
     id_vars = oak_id_vars()
   )
 
-# -------------------------------------------------------------------------
-# Map STUDYID
+# ------------------------ Map STUDYID---------------------------------------------------------
 # Logic: Map STUDY (raw) to STUDYID (target)
 ds <- ds %>%
   assign_no_ct(
@@ -109,8 +103,7 @@ ds <- ds %>%
     id_vars = oak_id_vars()
   )
 
-# -------------------------------------------------------------------------
-# Map DOMAIN
+# ----------------------- Map DOMAIN------------------------------------------------------------
 # Logic : Hardcode DOMAIN as a constant "DS"
 ds <- ds %>%
   hardcode_no_ct(
@@ -121,8 +114,7 @@ ds <- ds %>%
     id_vars = oak_id_vars()
   )
 
-# -------------------------------------------------------------------------
-# Derive USUBJID
+# ---------------------- Derive USUBJID ----------------------------------------------------------
 # Logic: USUBJID = STUDY + "-" + PATNUM
 ds <- ds %>% 
   left_join(
@@ -131,8 +123,8 @@ ds <- ds %>%
   mutate(USUBJID = paste0(STUDY, "-", PATNUM)) %>% 
   select(-c(STUDY, PATNUM))
 
-# -------------------------------------------------------------------------
-# Derive VISIT and VISITNUM
+
+# -------------------------Derive VISIT and VISITNUM ----------------------------------------------
 # Logic: 
 #   - INSTANCE represents study timepoints and is mapped to VISIT.
 #   - VISITNUM is derived only for scheduled visits (Baseline, Screening, Week XX).
@@ -156,8 +148,7 @@ ds <- ds %>%
            TRUE ~ NA_real_
          )) 
 
-# -------------------------------------------------------------------------
-# Derive DSDTC to ISO 8601 format
+# ------------------------Derive DSDTC to ISO 8601 format----------------------------------------
 # Logic : Mapping DSDTCOL (follows m-d-y format), DSTMCOL (follows H:M format) to DSDTC
 
 # Mapping DSTMCOL and DSDTCOL to DSDTC
@@ -171,8 +162,7 @@ ds <- ds %>%
     raw_unk = c("NA")  # safe, common unknown tokens
   )
 
-# -------------------------------------------------------------------------
-# Derive DSSTDTC 
+# -------------------------- Derive DSSTDTC  --------------------------------------------------
 # Logic : Convert IT.DSSTDAT to ISO 8601 date.
 ds <- ds %>%
   assign_datetime(
@@ -184,8 +174,7 @@ ds <- ds %>%
     raw_unk = c("NA")  # safe, common unknown tokens
   )
 
-# -------------------------------------------------------------------------
-# Derive DSSTDY
+# --------------------------- Derive DSSTDY ---------------------------------------------------
 # Create a DM-like reference dataset with RFSTDTC
 # Sponsor-defined reference: Randomization date (DSDECOD == "RANDOMIZED")
 dm_like <- ds %>%
@@ -214,8 +203,7 @@ ds_for_day <- derive_study_day(
 ds <- ds %>%
   left_join(ds_for_day, by = oak_id_vars())
 
-# -------------------------------------------------------------------------
-# Derive DSSEQ
+# -------------------------------Derive DSSEQ -----------------------------------------------------
 # Logic : Sequence within USUBJID ordered by DSSTDTC then DSDTC then oak_id.
 ds <- ds %>%
   left_join(
@@ -227,15 +215,14 @@ ds <- ds %>%
   mutate(DSSEQ = row_number()) %>%
   ungroup()
 
-# -------------------------------------------------------------------------
-# Final formatting for SDTM dataset
+# ----------------------------- Final formatting for SDTM dataset -------------------------------
+
 ds_sdtm <- ds %>% 
   select(STUDYID, DOMAIN, USUBJID, DSSEQ, DSTERM, DSDECOD, DSCAT, VISITNUM, VISIT, DSDTC,
          DSSTDTC, DSSTDY)
 
 head(ds_sdtm, 10)
 
-# -------------------------------------------------------------------------
-# Saving formatted SDTM dataset
+# ------------------------------- Saving formatted SDTM dataset ---------------------------------
 write.csv(ds_sdtm, "Question1/ds_SDTM.csv", row.names = FALSE)
 
