@@ -1,0 +1,179 @@
+> ###############################################################################
+> # Question 3: TLG – Adverse Events Reporting - Visualizations
+> # Program: question_3_tlg_01_create_ae_visualizations.R
+> 
+> # Plot 1: AE Severity Distribution by Treatment (Bar Chart)
+> #             -Purpose: Create a stacked bar chart showing the distribution of AE severity
+> #              (MILD, MODERATE, SEVERE) by treatment group using ADAE.
+> #
+> # Plot 2: Top 10 Most Frequent AEs (with 95% CI for incidence rates)
+> #             -Purpose: Create a forest plot showing the Top 10 most frequent
+> #              TEAEs by Preferred Term (AETERM) with 95% Clopper-Pearson CIs
+> #              for incidence (%) using ADAE.
+> #
+> # Input: pharmaverseadam ADAE and ADSL datasets
+> # Output: 1) ae_severity_by_treatment_barchart.png (barchart)
+> #         2) top_ten_ae_forest_plot.png (forest plot)
+> ###############################################################################
+> 
+> # -------------- Load required packages -------------------------------------------
+> library(tidyverse)
+> library(pharmaverseadam)
+> library(GenBinomApps) # clopper pearson ci
+> 
+> # -------------- Load input datasets ----------------------------------------------
+> adae <- pharmaverseadam::adae
+> adsl <- pharmaverseadam::adsl
+> 
+> 
+> ########################### AE Severity Barchatt #####################################
+> 
+> # -------------- Prepare visualization barchart dataset -------------------------------------
+> # Filter for Treatment-Emergent AEs and keep severity and treatment
+> 
+> adae_dat <- adae %>% 
++   filter(TRTEMFL == "Y") %>%  # Treatment-emergent AEs only
++   filter(!is.na(AESEV)) %>% # Remove missing severity 
++   select(USUBJID, ACTARM,  AESEV) # Select necessary columns only
+>     
+> # Get the counts for each severity for each treatment arm
+> adae_viz_dat <- adae_dat %>% 
++   group_by(ACTARM, AESEV) %>% 
++   summarise(count = n()) %>% 
++   ungroup()
+`summarise()` has grouped output by 'ACTARM'. You can override using the `.groups` argument.
+> 
+> # -------------- Create bar chart ---------------------------------------------
+> ae_sev_barchart <- ggplot(data = adae_viz_dat, 
++                           aes(x = ACTARM, # x axis
++                               y = count, # y axis
++                               fill = AESEV)) +  # stacked barchart
++   # barchart with counts with space between bars
++   geom_col(width = 0.7) +
++   # adjust axis and title names
++   labs(
++     title = "AE Severity Distribution by Treatment",
++     x = "Treatment Arm",
++     y = "Count of AEs",
++     # legend title
++     fill = "Severity/Intensity"
++   ) + 
++   # fix x tick labels for better readability
++   scale_x_discrete(
++     labels = c(
++       "Placebo" = "Placebo", 
++       "Xanomeline Low Dose" = "Xanomeline\nLow Dose", 
++       "Xanomeline High Dose" = "Xanomeline\nHigh Dose"
++     )
++   ) + 
++   # adjust colors for barchart
++   scale_fill_manual(
++     values = c(
++       "MILD"     = "#6FBF9A",  
++       "MODERATE" = "#F2B66D",  
++       "SEVERE"   = "#E07A7A"   
++     ) 
++   ) +
++   # background theme
++   theme_minimal() +
++   theme(
++     # make plot title bold 
++     plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
++     # make x-axis title labels bold
++     axis.title.x = element_text(face = "bold"), 
++     # make y-axis title labels bold
++     axis.title.y = element_text(face = "bold"),
++     # put legend on the right
++     legend.position = "right"
++   )
+> 
+> # -------------- Save barchart output --------------------------------------------------
+> ggsave(
++   filename = "Question3/question3_02_visuals/ae_severity_by_treatment_barchart.png",
++   plot = ae_sev_barchart,
++   width = 6,
++   height = 4,
++   dpi = 300
++ )
+> 
+> ########################### Forest Plot of top 10 AEs #####################################
+> 
+> # -------------- Prepare visualization dataset -------------------------------------
+> # Denominator: all unique subjects in ADSL
+> denom_n <- adsl %>% distinct(USUBJID) %>% nrow()
+> 
+> # Numerator dataset: TEAEs with preferred term (AETERM)
+> adae_term <- adae %>%
++   filter(TRTEMFL == "Y") %>% # Treatment-emergent AEs only
++   filter(!is.na(AETERM)) %>% # Remove missing terms
++   distinct(USUBJID, AETERM)  # Subject-level incidence per term
+> 
+> # Count subjects with each AE term and keep Top 10
+> top10_terms <- adae_term %>%
++   group_by(AETERM) %>% 
++   summarise(count = n()) %>% 
++   arrange(desc(count)) %>% # order from largest to smallest count
++   slice_head(n = 10) %>%  # keep top 10
++   ungroup()
+> 
+> # Compute incidence (%) and exact (Clopper-Pearson) 95% CI
+> top_10_ci <- top10_terms %>%
++   # compute for every row
++   rowwise() %>%
++   mutate(
++     ci = list(clopper.pearson.ci(k = count,
++                                  n = denom_n,
++                                  alpha = 0.05,
++                                  CI = "two.sided")),
++     lower = ci$Lower.limit,
++     upper = ci$Upper.limit,
++     pct = 100 * count / denom_n,
++     lower_pct = 100 * lower,
++     upper_pct = 100 * upper
++     )
+> 
+> # -------------- Create forest plot --------------------------------------------------------
+> ae_top10_plot <- ggplot(data = top_10_ci, 
++                         aes(x = pct, y = reorder(AETERM, pct, decreasing = TRUE))) + 
++   # confidence interval lines
++   geom_errorbar(
++     aes(xmin = lower_pct, 
++         xmax = upper_pct), 
++     width = 0.2, 
++     linewidth = 0.5
++   ) + 
++   # point estimates
++   geom_point(size = 2.2) + 
++   # x-axis percent
++   # titles and axis labels
++   labs(
++     title = "Top 10 Most Frequent Adverse Events",
++     subtitle = paste0("95% Clopper-Pearson CI; N = ", denom_n, " subjects"),
++     x = "Percentage of Patients (%)",
++     y = NULL
++   ) +
++   # background
++   theme_minimal() +
++   theme(
++     # bold title and adjust size
++     plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
++     # subtitle palcement
++     plot.subtitle = element_text(hjust = 0.5),
++     # bold x axis lable
++     axis.title.x = element_text(face = "bold"),
++     # adjust x axis text
++     axis.text.y = element_text(size = 6),
++     # background theme
++     panel.grid.minor = element_blank()
++   )
+> 
+> # -------------- Save forest plot output --------------------------------------------------
+> ggsave(
++   filename = "Question3/question3_02_visuals/top_ten_ae_forest_plot.png",
++   plot = ae_top10_plot,
++   width = 6,
++   height = 4,
++   dpi = 300
++ )
+
+Runs without errors! :D
