@@ -35,7 +35,6 @@ study_sct <- read_csv("Question1/sdtm_ct.csv")
 str(study_sct)
 
 # -------------------------------------------------------------------------
-
 # Adding Oak ID vars into dataset
 ds_raw <- generate_oak_id_vars(
   raw_dat = ds_raw,
