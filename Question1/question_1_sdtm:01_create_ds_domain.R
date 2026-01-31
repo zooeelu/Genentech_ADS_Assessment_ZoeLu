@@ -1,11 +1,19 @@
 # ------------------------------------------------------------------------------------------------
-# Program: question_1_sdtm:01_create_ds_domsain.R
+# Program: question_1_sdtm:01_create_ds_domain.R
 # Purpose: Create SDTM DS (Disposition) domain using {sdtm.oak}
 # Input: pharmaverseraw::ds_raw
 # Output: SDTM DS domain
-# Notes: Instructions ask for DSSTDY in the final SDTM dataset but the raw DS
-#        did not provide any data on reference start dates so it was left out
-#        Sorry if I missed it :( but I wasn't sure how to calculate it without reference dates
+# Notes: The assessment inputs did not include the DM domain or a subject-level
+#        reference start date. However, the expected SDTM output for
+#        Question 1 requires derivation of DSSTDY.
+#        So, a "sponsor-defined reference" (me, for the sake of this assessment) start date was derived from the
+#        Disposition domain as follows:
+#             -RFSTDTC was defined as the start date (DSSTDTC) of the "Randomized"
+#              disposition record (DSDECOD = "RANDOMIZED") for each subject.
+#        For subjects without a Randomized record, RFSTDTC is missing and DSSTDY
+#        is left as NA.
+#        DSSTDY was then calculated relative to RFSTDTC using the standard SDTM
+#        study day algorithm outlined in the SDTM guide on CDISC website
 # ------------------------------------------------------------------------------------------------
 
 # Loading in required libraries
@@ -19,7 +27,7 @@ str(ds_raw)
 
 
 # Loading in study controlled terminology file
-study_sct <- read_csv("/Users/zoelu/Downloads/GenentechADSAssessment/GenentechADSAssessment/Question1/sdtm_ct.csv")
+study_sct <- read_csv("Question1/sdtm_ct.csv")
 str(study_sct)
 
 # -------------------------------------------------------------------------
@@ -35,6 +43,7 @@ ds_raw <- generate_oak_id_vars(
 # Create eCRF-driven collected values
 # Logic : If OTHERSP is NOT NULL, it drives DSTERM and DSDECOD, and sets DSCAT.
 #         Otherwise use the standard collected fields IT.DSTERM / IT.DSDECOD.
+#         For DSCAT: If IT.DSDECOD = "Randomized" --> Protocol Milestone, otherwise Disposition Event
 
 ds_raw <- ds_raw %>%
   mutate(
@@ -88,7 +97,7 @@ ds <- ds %>%
 
 # -------------------------------------------------------------------------
 # Map STUDYID
-# Logic: Map STUDY (raw) to STIDYID (target)
+# Logic: Map STUDY (raw) to STUDYID (target)
 ds <- ds %>%
   assign_no_ct(
     raw_var = "STUDY",
@@ -148,7 +157,6 @@ ds <- ds %>%
 # Derive DSDTC to ISO 8601 format
 # Logic : Mapping DSDTCOL (follows m-d-y format), DSTMCOL (follows H:M format) to DSDTC
 
-
 # Mapping DSTMCOL and DSDTCOL to DSDTC
 ds <- ds %>%
   assign_datetime(
@@ -174,6 +182,36 @@ ds <- ds %>%
   )
 
 # -------------------------------------------------------------------------
+# Derive DSSTDY
+# Create a DM-like reference dataset with RFSTDTC
+# Sponsor-defined reference: Randomization date (DSDECOD == "RANDOMIZED")
+dm_like <- ds %>%
+  filter(DSDECOD == "RANDOMIZED") %>%
+  distinct(USUBJID, RFSTDTC = DSSTDTC)
+
+# Convert iso8601 -> Date for BOTH target + reference
+# 1-10 to parse the dates only and not include time
+ds_for_day <- ds %>%
+  mutate(DSSTDTC = as.Date(substr(as.character(DSSTDTC), 1, 10)))
+
+dm_like <- dm_like %>%
+  mutate(RFSTDTC = as.Date(substr(as.character(RFSTDTC), 1, 10)))
+
+# Derive DSSTDY
+ds_for_day <- derive_study_day(
+  sdtm_in = ds_for_day,
+  dm_domain = dm_like,
+  tgdt = "DSSTDTC",
+  refdt = "RFSTDTC",
+  study_day_var = "DSSTDY",
+  merge_key = "USUBJID"
+  ) %>% 
+  select(all_of(oak_id_vars()), DSSTDY)
+
+ds <- ds %>%
+  left_join(ds_for_day, by = oak_id_vars())
+
+# -------------------------------------------------------------------------
 # Derive DSSEQ
 # Logic : Sequence within USUBJID ordered by DSSTDTC then DSDTC then oak_id.
 ds <- ds %>%
@@ -190,14 +228,11 @@ ds <- ds %>%
 # Final formatting for SDTM dataset
 ds_sdtm <- ds %>% 
   select(STUDYID, DOMAIN, USUBJID, DSSEQ, DSTERM, DSDECOD, DSCAT, VISITNUM, VISIT, DSDTC,
-         DSSTDTC)
+         DSSTDTC, DSSTDY)
 
+head(ds_sdtm, 10)
 
-
-
-
-
-
-
-
+# -------------------------------------------------------------------------
+# Saving formatted SDTM dataset
+write.csv(ds_sdtm, "Question1/ds_SDTM.csv", row.names = FALSE)
 

@@ -1,0 +1,291 @@
+> # ------------------------------------------------------------------------------------------------
+> # Program: question_1_sdtm:01_create_ds_domain.R
+> # Purpose: Create SDTM DS (Disposition) domain using {sdtm.oak}
+> # Input: pharmaverseraw::ds_raw
+> # Output: SDTM DS domain
+> # Notes: The assessment inputs did not include the DM domain or a subject-level
+> #        reference start date. However, the expected SDTM output for
+> #        Question 1 requires derivation of DSSTDY.
+> #        So, a "sponsor-defined reference" (me, for the sake of this assessment) start date was derived from the
+> #        Disposition domain as follows:
+> #             -RFSTDTC was defined as the start date (DSSTDTC) of the "Randomized"
+> #              disposition record (DSDECOD = "RANDOMIZED") for each subject.
+> #        For subjects without a Randomized record, RFSTDTC is missing and DSSTDY
+> #        is left as NA.
+> #        DSSTDY was then calculated relative to RFSTDTC using the standard SDTM
+> #        study day algorithm outlined in the SDTM guide on CDISC website
+> # ------------------------------------------------------------------------------------------------
+> 
+> # Loading in required libraries
+> library(tidyverse)
+> library(sdtm.oak)
+> library(pharmaverseraw)
+> 
+> # Loading in raw data from instruction file
+> ds_raw <- pharmaverseraw::ds_raw
+> str(ds_raw)
+tibble [850 × 13] (S3: tbl_df/tbl/data.frame)
+ $ STUDY     : chr [1:850] "CDISCPILOT01" "CDISCPILOT01" "CDISCPILOT01" "CDISCPILOT01" ...
+ $ PATNUM    : chr [1:850] "701-1015" "701-1015" "701-1015" "701-1023" ...
+ $ SITENM    : chr [1:850] "CDISCPILOT" "CDISCPILOT" "CDISCPILOT" "CDISCPILOT" ...
+ $ INSTANCE  : chr [1:850] "Baseline" "Week 26" "Week 26" "Baseline" ...
+ $ FORM      : chr [1:850] "DISC1" "DISC1" "DISC1" "DISC1" ...
+ $ FORML     : chr [1:850] "Subject Disposition" "Subject Disposition" "Subject Disposition" "Subject Disposition" ...
+ $ IT.DSTERM : chr [1:850] "Randomized" "Protocol Completed" NA "Randomized" ...
+ $ IT.DSDECOD: chr [1:850] "Randomized" "Completed" NA "Randomized" ...
+ $ OTHERSP   : chr [1:850] NA NA "Final Lab Visit" NA ...
+ $ DSDTCOL   : chr [1:850] "01-02-2014" "07-02-2014" "07-02-2014" "08-05-2012" ...
+ $ DSTMCOL   : chr [1:850] NA NA "11:45" NA ...
+ $ IT.DSSTDAT: chr [1:850] "01-02-2014" "07-02-2014" "07-02-2014" "08-05-2012" ...
+ $ DEATHDT   : chr [1:850] NA NA NA NA ...
+ - attr(*, "label")= chr "Disposition"
+> 
+> 
+> # Loading in study controlled terminology file
+> study_sct <- read_csv("Question1/sdtm_ct.csv")
+> str(study_sct)                                                                                                                            
+spc_tbl_ [164 × 6] (S3: spec_tbl_df/tbl_df/tbl/data.frame)
+ $ codelist_code      : chr [1:164] "C66726" "C66726" "C66726" "C66726" ...
+ $ term_code          : chr [1:164] "C25158" "C25394" "C29167" "C42887" ...
+ $ term_value         : chr [1:164] "CAPSULE" "PILL" "LOTION" "AEROSOL" ...
+ $ collected_value    : chr [1:164] "Capsule" "Pill" "Lotion" "Aerosol" ...
+ $ term_preferred_term: chr [1:164] "Capsule Dosage Form" "Pill Dosage Form" "Lotion Dosage Form" "Aerosol Dosage Form" ...
+ $ term_synonyms      : chr [1:164] "cap" NA NA "aer" ...
+ - attr(*, "spec")=
+  .. cols(
+  ..   codelist_code = col_character(),
+  ..   term_code = col_character(),
+  ..   term_value = col_character(),
+  ..   collected_value = col_character(),
+  ..   term_preferred_term = col_character(),
+  ..   term_synonyms = col_character()
+  .. )
+ - attr(*, "problems")=<externalptr> 
+> 
+> # -------------------------------------------------------------------------
+> 
+> # Adding Oak ID vars into dataset
+> ds_raw <- generate_oak_id_vars(
++   raw_dat = ds_raw,
++   pat_var = "PATNUM",
++   raw_src = "DS"
++ )
+> 
+> # -------------------------------------------------------------------------
+> # Create eCRF-driven collected values
+> # Logic : If OTHERSP is NOT NULL, it drives DSTERM and DSDECOD, and sets DSCAT.
+> #         Otherwise use the standard collected fields IT.DSTERM / IT.DSDECOD.
+> #         For DSCAT: If IT.DSDECOD = "Randomized" --> Protocol Milestone, otherwise Disposition Event
+> 
+> ds_raw <- ds_raw %>%
++   mutate(
++     DSTERM_COLLECTED  = ifelse(!is.na(OTHERSP), OTHERSP, `IT.DSTERM`),
++     DSDECOD_COLLECTED = ifelse(!is.na(OTHERSP), OTHERSP, `IT.DSDECOD`),
++     DSCAT_COLLECTED   = ifelse(!is.na(OTHERSP), "OTHER EVENT", 
++                                ifelse(`IT.DSDECOD` == "Randomized", "PROTOCOL MILESTONE", "DISPOSITION EVENT"))
++   )
+> 
+> # -------------------------------------------------------------------------
+> # Map DSTERM (Topic variable)
+> # Logic : DSTERM = DSTERM_COLLECTED (OTHERSP overrides IT.DSTERM when NOT NULL)
+> ds <- assign_no_ct(
++   tgt_var = "DSTERM",
++   raw_dat = ds_raw,
++   raw_var = "DSTERM_COLLECTED",
++   id_vars = oak_id_vars()
++ )
+> 
+> # -------------------------------------------------------------------------
+> # Identify codelist for DSDECOD, then map using CT
+> # Logic : DSDECOD = CT decode of DSDECOD_COLLECTED using study_sct
+> cand_codelist_code <- study_sct %>%
++   filter(collected_value %in% unique(ds_raw$DSDECOD_COLLECTED)) %>%
++   count(codelist_code, sort = TRUE) %>%
++   slice(1) %>%
++   pull(codelist_code)
+> 
+> ds <- ds %>%
++   assign_ct(
++     raw_var = "DSDECOD_COLLECTED",
++     raw_dat = ds_raw,
++     tgt_var = "DSDECOD",
++     id_vars = oak_id_vars(),
++     ct_spec = study_sct,
++     ct_clst = cand_codelist_code
++   )
+> 
+> # -------------------------------------------------------------------------
+> # Map DSCAT
+> # Logic : If OTHERSP is populated then DSCAT = "OTHER EVENT", else "DISPOSITION EVENT" 
+> #         DSCAT_COLLECTED derived earlier
+> 
+> ds <- ds %>%
++   assign_no_ct(
++     raw_var = "DSCAT_COLLECTED",
++     raw_dat = ds_raw,
++     tgt_var = "DSCAT",
++     id_vars = oak_id_vars()
++   )
+> 
+> # -------------------------------------------------------------------------
+> # Map STUDYID
+> # Logic: Map STUDY (raw) to STUDYID (target)
+> ds <- ds %>%
++   assign_no_ct(
++     raw_var = "STUDY",
++     raw_dat = ds_raw,
++     tgt_var = "STUDYID",
++     id_vars = oak_id_vars()
++   )
+> 
+> # -------------------------------------------------------------------------
+> # Map DOMAIN
+> # Logic : Hardcode DOMAIN as a constant "DS"
+> ds <- ds %>%
++   hardcode_no_ct(
++     raw_var = "PATNUM",
++     raw_dat = ds_raw,
++     tgt_var = "DOMAIN",
++     tgt_val = "DS",
++     id_vars = oak_id_vars()
++   )
+> 
+> # -------------------------------------------------------------------------
+> # Derive USUBJID
+> # Logic: USUBJID = STUDY + "-" + PATNUM
+> ds <- ds %>% 
++   left_join(
++     ds_raw %>% select(all_of(oak_id_vars()), STUDY, PATNUM)
++     ) %>% 
++   mutate(USUBJID = paste0(STUDY, "-", PATNUM)) %>% 
++   select(-c(STUDY, PATNUM))
+> 
+> # -------------------------------------------------------------------------
+> # Derive VISIT and VISITNUM
+> # Logic: 
+> #   - INSTANCE represents study timepoints and is mapped to VISIT.
+> #   - VISITNUM is derived only for scheduled visits (Baseline, Screening, Week XX).
+> #   - VISITNUM logic: Baseline = 0, Screening = -1, Week = XX
+> #   - Unscheduled and procedure-like INSTANCE values do not receive VISITNUM (NA).
+> 
+> # Check possible INSTANCE values
+> table(ds_raw$INSTANCE)
+
+Ambul Ecg Removal          Baseline         Retrieval       Screening 1   Unscheduled 1.1  Unscheduled 13.1   Unscheduled 4.1 
+                4               254                37                57                 2                 1                 1 
+  Unscheduled 5.1   Unscheduled 6.1   Unscheduled 8.2           Week 12           Week 16            Week 2           Week 20 
+                1                 1                 2                51                33                46                27 
+          Week 24           Week 26            Week 4            Week 6            Week 8 
+               14               219                27                42                31 
+> 
+> # Deriving Visit and VISITNUM
+> ds <- ds %>% 
++   left_join(
++     ds_raw %>% select(all_of(oak_id_vars()), INSTANCE), 
++     by = oak_id_vars()
++   ) %>% 
++   mutate(VISIT = INSTANCE, 
++          VISITNUM = case_when(
++            INSTANCE == "Baseline" ~ 0, 
++            str_detect(INSTANCE, "^Screening") ~ -1, 
++            str_detect(INSTANCE, "^Week\\s+\\d+") ~ as.numeric(str_extract(INSTANCE, "\\d+")), 
++            TRUE ~ NA_real_
++          )) 
+> 
+> # -------------------------------------------------------------------------
+> # Derive DSDTC to ISO 8601 format
+> # Logic : Mapping DSDTCOL (follows m-d-y format), DSTMCOL (follows H:M format) to DSDTC
+> 
+> # Mapping DSTMCOL and DSDTCOL to DSDTC
+> ds <- ds %>%
++   assign_datetime(
++     raw_dat = ds_raw,
++     raw_var = c("DSDTCOL", "DSTMCOL"),
++     tgt_var = "DSDTC",
++     id_vars = oak_id_vars(),
++     raw_fmt = c("m-d-y", "H:M"),
++     raw_unk = c("NA")  # safe, common unknown tokens
++   )
+> 
+> # -------------------------------------------------------------------------
+> # Derive DSSTDTC 
+> # Logic : Convert IT.DSSTDAT to ISO 8601 date.
+> ds <- ds %>%
++   assign_datetime(
++     raw_dat = ds_raw,
++     raw_var = "IT.DSSTDAT",
++     tgt_var = "DSSTDTC",
++     id_vars = oak_id_vars(),
++     raw_fmt = "m-d-y",
++     raw_unk = c("NA")  # safe, common unknown tokens
++   )
+> 
+> # -------------------------------------------------------------------------
+> # Derive DSSTDY
+> # Create a DM-like reference dataset with RFSTDTC
+> # Sponsor-defined reference: Randomization date (DSDECOD == "RANDOMIZED")
+> dm_like <- ds %>%
++   filter(DSDECOD == "RANDOMIZED") %>%
++   distinct(USUBJID, RFSTDTC = DSSTDTC)
+> 
+> # Convert iso8601 -> Date for BOTH target + reference
+> # 1-10 to parse the dates only and not include time
+> ds_for_day <- ds %>%
++   mutate(DSSTDTC = as.Date(substr(as.character(DSSTDTC), 1, 10)))
+> 
+> dm_like <- dm_like %>%
++   mutate(RFSTDTC = as.Date(substr(as.character(RFSTDTC), 1, 10)))
+> 
+> # Derive DSSTDY
+> ds_for_day <- derive_study_day(
++   sdtm_in = ds_for_day,
++   dm_domain = dm_like,
++   tgdt = "DSSTDTC",
++   refdt = "RFSTDTC",
++   study_day_var = "DSSTDY",
++   merge_key = "USUBJID"
++   ) %>% 
++   select(all_of(oak_id_vars()), DSSTDY)
+> 
+> ds <- ds %>%
++   left_join(ds_for_day, by = oak_id_vars())
+> 
+> # -------------------------------------------------------------------------
+> # Derive DSSEQ
+> # Logic : Sequence within USUBJID ordered by DSSTDTC then DSDTC then oak_id.
+> ds <- ds %>%
++   left_join(
++     ds_raw %>% select(all_of(oak_id_vars()), oak_id),
++     by = oak_id_vars()
++   ) %>%
++   arrange(USUBJID, DSSTDTC, DSDTC, oak_id) %>%
++   group_by(USUBJID) %>%
++   mutate(DSSEQ = row_number()) %>%
++   ungroup()
+> 
+> # -------------------------------------------------------------------------
+> # Final formatting for SDTM dataset
+> ds_sdtm <- ds %>% 
++   select(STUDYID, DOMAIN, USUBJID, DSSEQ, DSTERM, DSDECOD, DSCAT, VISITNUM, VISIT, DSDTC,
++          DSSTDTC, DSSTDY)
+> 
+> head(ds_sdtm, 10)
+# A tibble: 10 × 12
+   STUDYID      DOMAIN USUBJID               DSSEQ DSTERM                DSDECOD               DSCAT     VISITNUM VISIT DSDTC DSSTDTC DSSTDY
+   <chr>        <chr>  <chr>                 <int> <chr>                 <chr>                 <chr>        <dbl> <chr> <iso> <iso86>  <int>
+ 1 CDISCPILOT01 DS     CDISCPILOT01-701-1015     1 Randomized            RANDOMIZED            PROTOCOL…        0 Base… 2014… 2014-0…      1
+ 2 CDISCPILOT01 DS     CDISCPILOT01-701-1015     2 Protocol Completed    COMPLETED             DISPOSIT…       26 Week… 2014… 2014-0…    182
+ 3 CDISCPILOT01 DS     CDISCPILOT01-701-1015     3 Final Lab Visit       FINAL LAB VISIT       OTHER EV…       26 Week… 2014… 2014-0…    182
+ 4 CDISCPILOT01 DS     CDISCPILOT01-701-1023     1 Randomized            RANDOMIZED            PROTOCOL…        0 Base… 2012… 2012-0…      1
+ 5 CDISCPILOT01 DS     CDISCPILOT01-701-1023     2 Adverse Event         ADVERSE EVENT         DISPOSIT…        4 Week… 2012… 2012-0…     29
+ 6 CDISCPILOT01 DS     CDISCPILOT01-701-1023     3 Final Lab Visit       FINAL LAB VISIT       OTHER EV…        4 Week… 2012… 2012-0…     29
+ 7 CDISCPILOT01 DS     CDISCPILOT01-701-1023     4 Final Retrieval Visit FINAL RETRIEVAL VISIT OTHER EV…       NA Retr… 2013… 2013-0…    198
+ 8 CDISCPILOT01 DS     CDISCPILOT01-701-1028     1 Randomized            RANDOMIZED            PROTOCOL…        0 Base… 2013… 2013-0…      1
+ 9 CDISCPILOT01 DS     CDISCPILOT01-701-1028     2 Protocol Completed    COMPLETED             DISPOSIT…       26 Week… 2014… 2014-0…    180
+10 CDISCPILOT01 DS     CDISCPILOT01-701-1028     3 Final Lab Visit       FINAL LAB VISIT       OTHER EV…       26 Week… 2014… 2014-0…    180
+> 
+> # -------------------------------------------------------------------------
+> # Saving formatted SDTM dataset
+> write.csv(ds_sdtm, "Question1/ds_SDTM.csv", row.names = FALSE)
+
+It ran without errors!! :)
