@@ -234,6 +234,7 @@ adsl <- adsl %>%
   )
 
 # ------------Saving ADAM ADSL dataset ------------------------------------------------
+# Derived variables are at the end of dataset
 write.csv(adsl, "Question2/adam_adsl.csv", row.names = FALSE) 
 
 
