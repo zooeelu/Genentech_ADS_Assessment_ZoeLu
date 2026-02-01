@@ -54,5 +54,11 @@ as_gt(ae_table) %>%
   tab_header(
     title = "Summary of Treatment-Emergent Adverse Events (TEAE)"
     ) %>% 
-  gtsave("Question3/AE_summary_table.html")
+  gtsave("Question3/question3_01_sumtable/AE_summary_table.html")
 
+## ---- Saving summary table as PDF ------------------------------------------------
+as_gt(ae_table) %>%
+  tab_header(
+    title = "Summary of Treatment-Emergent Adverse Events (TEAE)"
+  ) %>% 
+  gtsave("Question3/question3_01_sumtable/AE_summary_table.pdf")
