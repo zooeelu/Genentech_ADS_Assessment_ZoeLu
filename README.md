@@ -25,7 +25,6 @@ Contains all files related to **Question 1: SDTM DS domain creation**.
 - **`q1_run_log.txt`**  
   Execution log included as evidence that the code runs successfully without errors.
 
----
 
 ## Question 2 — ADaM ADSL Dataset Creation
 
@@ -43,7 +42,6 @@ Contains all files related to **Question 2: ADaM ADSL dataset creation using the
 - **`q2_run_log.txt`**  
   Execution log included as evidence that the code runs successfully without errors.
 
----
 
 ## Question 3 — TLG: Adverse Events Reporting
 
