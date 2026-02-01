@@ -47,7 +47,7 @@ Contains all files related to **Question 2: ADaM ADSL dataset creation using the
 
 Contains all files related to **Question 3: TLG – Adverse Events Reporting (Tables and Visualizations)**.
 
-### `question3_01_sumtable/`
+### 1) `question3_01_sumtable/`
 Creation of the FDA-style AE summary table.
 
 **Files**
@@ -60,7 +60,7 @@ Creation of the FDA-style AE summary table.
 - **`q3_01_table_run_log.txt`**  
   Execution log included as evidence that the table-generation code runs successfully without errors.
 
-### `question3_02_visuals/`
+### 2) `question3_02_visuals/`
 Creation of AE visualizations using `{ggplot2}`.
 
 **Files**
