@@ -52,7 +52,7 @@ Creation of the FDA-style AE summary table.
 
 **Files**
 - **`question_3_tlg_01_create_ae_summary_table.R`**  
-  Main R script used to generate the FDA-style summary table of treatment-emergent adverse events (TEAEs).
+  Main R script used to generate the FDA-style summary table of TEAEs.
 
 - **`AE_summary_table.html`**  
   HTML output of the AE summary table.
