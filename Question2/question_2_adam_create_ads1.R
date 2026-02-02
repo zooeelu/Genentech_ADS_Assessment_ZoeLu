@@ -236,7 +236,7 @@ adsl <- adsl %>%
 # ------------Formatting final ADAM ADSL dataset ---------------------------------------
 adsl_final <- adsl %>% 
   select(
-    STUDYID, SUBJID, AGEGR9, AGEGR9N, TRTSDTM, 
+    STUDYID, USUBJID, AGEGR9, AGEGR9N, TRTSDTM, 
          TRTSTMF, ITTFL, TRTEDTM, LSTAVLDT
     )
 
