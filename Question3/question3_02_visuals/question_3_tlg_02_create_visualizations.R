@@ -131,7 +131,7 @@ top_10_ci <- top10_terms %>%
     upper_pct = 100 * upper
     )
 
-# -------------- Create forest plot --------------------------------------------------------
+# -------------- Create forest plot ------------------------------------------------------
 ae_top10_plot <- ggplot(data = top_10_ci, 
                         aes(x = pct, y = reorder(AETERM, pct, decreasing = FALSE))) + 
   # confidence interval lines
