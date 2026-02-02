@@ -14,7 +14,7 @@ A brief screen-share walkthrough of the repository structure, design decisions, 
 
 ## Question 1 — SDTM DS Domain Creation
 
-Contains all files related to **Question 1: SDTM DS domain creation**.
+Contains all files related to **Question 1: SDTM DS domain creation using the `{sdtm.oak}` package**.
 
 **Files**
 
@@ -76,8 +76,8 @@ Creation of AE visualizations using `{ggplot2}`.
 
 - **`question_3_tlg_02_create_visualizations.R`**  
   Main R script used to generate AE visualizations, including:
-  - AE severity distribution by treatment (stacked bar chart)
-  - Top 10 most frequent AEs with 95% Clopper–Pearson confidence intervals (forest plot)
+  - 1) AE severity distribution by treatment (stacked bar chart)
+  - 2) Top 10 most frequent AEs with 95% Clopper–Pearson confidence intervals (forest plot)
 
 - **`ae_severity_by_treatment_barchart.png`**  
   Stacked bar chart showing AE severity distribution by treatment group.
