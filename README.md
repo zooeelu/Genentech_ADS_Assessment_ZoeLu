@@ -3,10 +3,7 @@
 
 
 This repository contains my solution to the **Genentech ADS Programming
-Assessment**. 
-
-
-## Repository Structure
+Assessment**. Below is an explanation on what each folder contains and how to navigate it. 
 
 ## Question 1 — SDTM DS Domain Creation
 
