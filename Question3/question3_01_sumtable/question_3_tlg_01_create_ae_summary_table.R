@@ -5,7 +5,7 @@
 #          Adverse Events (TEAEs) using the pharmaverseadam ADAE and ADSL datasets.
 #          The table summarizes the number and percentage of subjects experiencing
 #          at least one TEAE by treatment group, following FDA TLG guidance.
-# Output: AE summary table in HTML format
+# Output: AE summary table in HTML + PDF format
 # Notes/ Reminders:
 #            - ADAE: event-level adverse event records (used for numerators)
 #            - ADSL: analysis population / treatment groups (used for denominators)
@@ -21,14 +21,13 @@ library(pharmaverseadam)
 adae <- pharmaverseadam::adae
 adsl <- pharmaverseadam::adsl
 
-## ---- Check contents of adsl and adae ----------------------------------------------------
+## ---- Check contents of adsl and adae ---------------------------------------
 # Check which dataset varibles of interest are in
 sum(colnames(adae) %in% c("AETERM", "AESOC", "ACTARM"))
 sum(colnames(adsl) %in% c("AETERM", "AESOC", "ACTARM")) # ACTARM in both datasets
 
-## ---- Derive subject-level AE indicators -------------------------------------
+## ---- Restrict to TEAEs ------------------------------------------------------
 adae_tbl_data <- adae %>%
-  # Restrict to TEAEs
   filter(TRTEMFL == "Y")
 
 ## ---- Add Total treatment group (last column) --------------------------------
@@ -45,8 +44,8 @@ adae_tbl_data_total <- adae_tbl_data %>%
 adsl_den_all <- bind_rows(adsl, adsl_total)
 adae_tbl_all <- bind_rows(adae_tbl_data, adae_tbl_data_total)
 
-# Force Total column to appear last (use ACTARM levels from ADAE)
-arm_levels <- c(sort(unique(adae$ACTARM)), "Total")
+# Force Total column to appear last (use treatment order from ADSL)
+arm_levels <- c(unique(adsl$ACTARM), "Total")
 
 adsl_den_all <- adsl_den_all %>%
   mutate(ACTARM = factor(ACTARM, levels = arm_levels))
@@ -61,27 +60,33 @@ adae_tbl_all <- adae_tbl_all %>%
 
 ae_table <- adae_tbl_all %>%
   tbl_hierarchical(
-    variables = c(AESOC, AETERM), # variables to sepcify hierarchy
-    by = ACTARM, # indicate what to group by for sum. stat
-    id = USUBJID, # identify rows to calculate event rates
-    denominator = adsl_den_all, # denominator of rates
-    overall_row = TRUE, # summary row at top of table
-    label = list(..ard_hierarchical_overall.. = "Any TEAE",
-                 AESOC = "System Organ Class",
-                 AETERM = "Preferred Term") # controls text shown in leftmost column
-  )
+    variables = c(AESOC, AETERM), # hierarchy
+    by = ACTARM,                  # treatment group columns
+    id = USUBJID,                 # subject-level counting
+    denominator = adsl_den_all,   # denominators (ADSL)
+    overall_row = TRUE,           # "Any TEAE" row
+    label = list(
+      ..ard_hierarchical_overall.. = "Any TEAE",
+      AESOC = "System Organ Class",
+      AETERM = "Preferred Term"
+    )
+  ) %>%
+  # Sort table by frequency in descending order
+  sort_hierarchical(sort = "descending")
 
-## ---- Saving summary table as HTML ------------------------------------------------
+## ---- Saving summary table as HTML ------------------------------------------
 as_gt(ae_table) %>%
   tab_header(
     title = "Summary of Treatment-Emergent Adverse Events (TEAE)"
   ) %>%
   gtsave("Question3/question3_01_sumtable/AE_summary_table.html")
 
-## ---- Saving summary table as PDF ------------------------------------------------
+## ---- Saving summary table as PDF -------------------------------------------
 as_gt(ae_table) %>%
   tab_header(
     title = "Summary of Treatment-Emergent Adverse Events (TEAE)"
   ) %>%
   gtsave("Question3/question3_01_sumtable/AE_summary_table.pdf")
+
+
 
