@@ -233,9 +233,16 @@ adsl <- adsl %>%
     new_vars = exprs(LSTAVLDT)
   )
 
+# ------------Formstting fial ADAM ADSL dataset ---------------------------------------
+adsl_final <- adsl %>% 
+  select(
+    STUDYID, SUBJID, AGEGR9, AGEGR9N, TRTSDTM, 
+         TRTSTMF, ITTFL, TRTEDTM, LSTAVLDT
+    )
+
 # ------------Saving ADAM ADSL dataset ------------------------------------------------
 # Derived variables are at the end of dataset
-write.csv(adsl, "Question2/adam_adsl.csv", row.names = FALSE) 
+write.csv(adsl_final, "Question2/adam_adsl.csv", row.names = FALSE) 
 
 
 
