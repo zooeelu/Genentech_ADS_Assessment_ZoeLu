@@ -13,6 +13,7 @@ Assessment**.
 Contains all files related to **Question 1: SDTM DS domain creation**.
 
 **Files**
+
 - **`question_1_sdtm_01_create_ds_domain.R`**  
   Main R script used to generate the SDTM DS domain.
 
@@ -31,6 +32,7 @@ Contains all files related to **Question 1: SDTM DS domain creation**.
 Contains all files related to **Question 2: ADaM ADSL dataset creation using the `{admiral}` package**.
 
 **Files**
+
 - **`question_2_adam_create_adsl.R`**  
   Main R script used to create the ADaM ADSL (subject-level) dataset from SDTM input domains  
   (`pharmaversesdtm::dm`, `vs`, `ex`, `ds`, `ae`).
@@ -51,6 +53,7 @@ Contains all files related to **Question 3: TLG – Adverse Events Reporting (Ta
 Creation of the FDA-style AE summary table.
 
 **Files**
+
 - **`question_3_tlg_01_create_ae_summary_table.R`**  
   Main R script used to generate the FDA-style summary table of TEAEs.
 
@@ -64,6 +67,7 @@ Creation of the FDA-style AE summary table.
 Creation of AE visualizations using `{ggplot2}`.
 
 **Files**
+
 - **`question_3_tlg_02_create_visualizations.R`**  
   Main R script used to generate AE visualizations, including:
   - AE severity distribution by treatment (stacked bar chart)
@@ -77,3 +81,31 @@ Creation of AE visualizations using `{ggplot2}`.
 
 - **`q3_02_visuals_run_log.txt`**  
   Execution log included as evidence that the visualization code runs successfully without errors.
+  
+## Question 4 — Generative AI Clinical Data Assistant
+
+Contains all files related to **Question 4: Natural-Language Clinical Data Querying Using a Large Language Model (LLM)**.
+
+**Files**
+
+- **`prompt.py`**  
+  Defines the system prompt used to instruct the LLM, including the AE schema and rules for mapping natural-language questions to SDTM AE variables.
+
+- **`json_parser.py`**  
+  Implements a custom output parser to extract and validate structured JSON output from the LLM.
+
+- **`ae_query_chain.py`**  
+  Builds the LangChain pipeline that connects the system prompt, LLM, and output parser to translate user questions into structured query instructions.
+
+- **`clinical_agent.py`**  
+  Defines the `ClinicalTrialDataAgent`, which interprets user questions, applies the resulting structured query to the AE dataset using pandas, and returns unique subject IDs and a summary of results.
+
+- **`adae.csv`**  
+  AE dataset used for testing and demonstration of the clinical data assistant.
+
+- **`test_script.ipynb`**  
+  Jupyter notebook demonstrating end-to-end execution of the clinical data assistant with example natural-language AE queries.
+
+- **`requirements.txt`**  
+  Python package dependencies required to run the Question 4 code.
+
