@@ -44,8 +44,8 @@ adae_tbl_data_total <- adae_tbl_data %>%
 adsl_den_all <- bind_rows(adsl, adsl_total)
 adae_tbl_all <- bind_rows(adae_tbl_data, adae_tbl_data_total)
 
-# Force Total column to appear last (use treatment order from ADSL)
-arm_levels <- c(unique(adsl$ACTARM), "Total")
+# Force Total column to appear last (use treatment groups from ADAE TEAEs; ADSL only for denominators)
+arm_levels <- c(sort(unique(as.character(adae_tbl_data$ACTARM))), "Total")
 
 adsl_den_all <- adsl_den_all %>%
   mutate(ACTARM = factor(ACTARM, levels = arm_levels))
