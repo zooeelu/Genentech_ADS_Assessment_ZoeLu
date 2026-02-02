@@ -233,7 +233,7 @@ adsl <- adsl %>%
     new_vars = exprs(LSTAVLDT)
   )
 
-# ------------Formstting fial ADAM ADSL dataset ---------------------------------------
+# ------------Formatting final ADAM ADSL dataset ---------------------------------------
 adsl_final <- adsl %>% 
   select(
     STUDYID, SUBJID, AGEGR9, AGEGR9N, TRTSDTM, 
