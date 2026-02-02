@@ -65,6 +65,7 @@ ds <- assign_no_ct(
 
 # ------------------ Identify codelist for DSDECOD, then map using CT -------------------------
 # Logic : DSDECOD = CT decode of DSDECOD_COLLECTED using study_sct
+# Try to identify the code that shows up the most to match as many codes as possible.
 cand_codelist_code <- study_sct %>%
   filter(collected_value %in% unique(ds_raw$DSDECOD_COLLECTED)) %>%
   count(codelist_code, sort = TRUE) %>%
