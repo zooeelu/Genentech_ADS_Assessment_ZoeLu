@@ -5,6 +5,13 @@
 This repository contains my solution to the **Genentech ADS Programming
 Assessment**. Below is an explanation on what each folder contains and how to navigate it. 
 
+## Video Walkthrough
+
+A brief screen-share walkthrough of the repository structure, design decisions, and key learnings:
+
+[▶️ Watch the walkthrough video](github_walkthrough.mp4)
+
+
 ## Question 1 — SDTM DS Domain Creation
 
 Contains all files related to **Question 1: SDTM DS domain creation**.
