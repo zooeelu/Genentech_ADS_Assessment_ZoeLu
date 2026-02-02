@@ -133,7 +133,7 @@ top_10_ci <- top10_terms %>%
 
 # -------------- Create forest plot --------------------------------------------------------
 ae_top10_plot <- ggplot(data = top_10_ci, 
-                        aes(x = pct, y = reorder(AETERM, pct, decreasing = TRUE))) + 
+                        aes(x = pct, y = reorder(AETERM, pct, decreasing = FALSE))) + 
   # confidence interval lines
   geom_errorbar(
     aes(xmin = lower_pct, 
