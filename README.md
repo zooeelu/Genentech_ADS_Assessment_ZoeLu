@@ -9,7 +9,7 @@ Assessment**. Below is an explanation on what each folder contains and how to na
 
 A brief screen-share walkthrough of the repository structure, design decisions, and key learnings:
 
-[Watch the walkthrough video](https://drive.google.com/file/d/1-RtNWEV8I5VFFFTk0Bg6xf6YPsrqhBU2/view?usp=sharing)
+[Watch the walkthrough video here!](https://drive.google.com/file/d/1-RtNWEV8I5VFFFTk0Bg6xf6YPsrqhBU2/view?usp=sharing)
 
 
 ## Question 1 — SDTM DS Domain Creation
